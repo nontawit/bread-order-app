@@ -32,12 +32,11 @@ interface OrderCardProps {
   onDelete: (id: string) => void;
 }
 
-const statusMap: Record<OrderStatus, { label: string; color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'; icon: React.ReactNode }> = {
+const statusMap: Record<OrderStatus, { label: string; color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'; icon: React.ReactElement }> = { // เปลี่ยน type ของ icon เป็น React.ReactElement
   รอคิว: { label: 'รอคิว', color: 'default', icon: <AccessTimeIcon fontSize="small" /> },
   ดำเนินการ: { label: 'กำลังดำเนินการ', color: 'warning', icon: <PlayCircleIcon fontSize="small" /> },
   เสร็จสิ้น: { label: 'เสร็จสิ้น', color: 'success', icon: <CheckCircleIcon fontSize="small" /> },
 };
-
 const OrderCard: React.FC<OrderCardProps> = ({ order, onEdit, onDelete }) => {
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
 
@@ -73,10 +72,10 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onEdit, onDelete }) => {
           <Typography variant="h6" component="div" sx={{ fontWeight: 600, fontSize: { xs: '1.15rem', sm: '1.25rem' } }}>
             ลูกค้า: {order.customerName}
           </Typography>
-          <Chip
+         <Chip
             label={statusMap[order.status].label}
             color={statusMap[order.status].color}
-            icon={statusMap[order.status].icon}
+            icon={statusMap[order.status].icon} // ตรงนี้ตอนนี้จะถูกต้องแล้ว เพราะ Type ของ icon ใน statusMap ถูกบังคับให้เป็น React.ReactElement
             size={isMobile ? "small" : "medium"}
             sx={{ fontWeight: 'bold' }}
           />
@@ -154,7 +153,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onEdit, onDelete }) => {
               const status = statusKey as OrderStatus;
               return (
                 <ListItem
-                  button
+                  component="button"
                   key={statusKey}
                   onClick={() => handleStatusChange(status)}
                   sx={{
