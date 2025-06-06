@@ -15,28 +15,45 @@ const theme = createTheme({
       main: pink[400],
     },
     background: {
-      default: '#f5f5f5', // สีพื้นหลัง
+      default: '#f5f5f5',
     },
   },
   typography: {
-    fontFamily: 'Roboto, sans-serif',
-    // เพิ่ม font อื่นๆ ถ้าต้องการ
+    // กำหนด fontFamily สำหรับ Roboto และ Prompt (หรือฟอนต์ไทยอื่นๆ)
+    // ตรวจสอบให้แน่ใจว่าได้ import ฟอนต์เหล่านี้ใน index.css หรือ public/index.html แล้ว
+    fontFamily: [
+      'Kanit', // ฟอนต์ไทยที่คุณต้องการใช้
+      'Roboto',
+      'Arial',
+      'sans-serif',
+      '"Apple Color Emoji"',
+      '"Segoe UI Emoji"',
+      '"Segoe UI Symbol"',
+    ].join(','),
   },
   components: {
     MuiTab: {
       styleOverrides: {
         root: {
-          textTransform: 'none', // ไม่บังคับเป็นตัวพิมพ์ใหญ่
+          textTransform: 'none',
         },
       },
     },
     MuiButton: {
       styleOverrides: {
         root: {
-          textTransform: 'none', // ไม่บังคับเป็นตัวพิมพ์ใหญ่
+          textTransform: 'none',
         },
       },
     },
+    // สามารถเพิ่ม overrides สำหรับ Typography ที่เจาะจงได้ถ้าต้องการ
+    // MuiTypography: {
+    //   styleOverrides: {
+    //     root: {
+    //       // ปรับ styling เพิ่มเติมที่นี่
+    //     },
+    //   },
+    // },
   }
 });
 

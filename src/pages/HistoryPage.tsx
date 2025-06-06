@@ -1,4 +1,5 @@
 // src/pages/HistoryPage.tsx
+
 import { useState, useEffect } from 'react';
 import {
   Typography,
@@ -8,8 +9,8 @@ import {
   Stack,
   Fab,
   Zoom,
-  useMediaQuery,
-  TextField,
+  useScrollTrigger,
+  TextField, // ตรวจสอบว่าได้ import TextField แล้ว
 } from '@mui/material';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import OrderCard from '../components/OrderCard';
@@ -20,34 +21,42 @@ import { getOrders, deleteOrder } from '../utils/firebaseHelpers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import dayjs, { Dayjs } from 'dayjs'; // Import dayjs and Dayjs type
-import 'dayjs/locale/th'; // Import Thai locale for dayjs
-import th from 'dayjs/locale/th'; // Import th for setGlobal
+import dayjs, { Dayjs } from 'dayjs'; // ตรวจสอบว่าได้ import Dayjs type มาด้วย
+import 'dayjs/locale/th';
+import th from 'dayjs/locale/th';
+// Import plugin สำหรับปีพุทธศักราช
+import buddhistEra from 'dayjs/plugin/buddhistEra';
 
-dayjs.locale(th); // Set dayjs global locale to Thai
+// Set locale for Dayjs globally
+dayjs.locale(th);
+// ใช้ plugin สำหรับปีพุทธศักราช
+dayjs.extend(buddhistEra);
 
 interface HistoryPageProps {
   onEditOrder: (order: Order) => void;
 }
 
-// Component สำหรับปุ่ม Scroll to Top (ยังคงเหมือนเดิม)
+// Component สำหรับปุ่ม Scroll To Top
 interface ScrollTopProps {
   children: React.ReactElement;
 }
 
 function ScrollTop(props: ScrollTopProps) {
   const { children } = props;
-  const trigger = useMediaQuery((theme: any) => theme.breakpoints.up('sm') ? '(min-scroll-y: 100px)' : '(min-scroll-y: 50px)');
+  const trigger = useScrollTrigger({
+    disableHysteresis: true,
+    threshold: 100,
+  });
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    const anchor = (event.target as HTMLDivElement).ownerDocument.querySelector(
-      '#back-to-top-anchor',
-    );
+    const anchor = (
+      (event.target as HTMLDivElement).ownerDocument || document
+    ).querySelector('#back-to-top-anchor');
 
     if (anchor) {
       anchor.scrollIntoView({
-        behavior: 'smooth',
         block: 'center',
+        behavior: 'smooth',
       });
     }
   };
@@ -57,90 +66,105 @@ function ScrollTop(props: ScrollTopProps) {
       <Box
         onClick={handleClick}
         role="presentation"
-        sx={{
-          position: 'fixed',
-          bottom: { xs: 16, sm: 24 },
-          right: { xs: 16, sm: 24 },
-          zIndex: (theme) => theme.zIndex.drawer + 1,
-        }}
+        sx={{ position: 'fixed', bottom: 16, right: 16, zIndex: 1000 }} // เพิ่ม zIndex
       >
         {children}
       </Box>
     </Zoom>
   );
 }
+// สิ้นสุด ScrollTop component
 
 const HistoryPage: React.FC<HistoryPageProps> = ({ onEditOrder }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null); // State สำหรับ DatePicker
+  // Initial state for selectedDate should be null to indicate no date is selected
+  const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     let unsubscribe: () => void;
 
-    if (selectedDate) {
-      // ถ้าเลือกวันที่ ให้กรองเฉพาะวันนั้น
-      const startOfDay = selectedDate.startOf('day').toDate();
-      const endOfDay = selectedDate.endOf('day').toDate();
-      unsubscribe = getOrders((fetchedOrders, err) => {
-        if (err) {
-          console.error("HistoryPage Error: Failed to fetch orders for selected date.", err);
-          setError("ไม่สามารถโหลดรายการออเดอร์สำหรับวันที่เลือกได้");
-        } else {
-          setOrders(fetchedOrders.sort((a, b) => b.createdAt - a.createdAt));
-          setError(null);
-        }
-        setLoading(false);
-      }, startOfDay, endOfDay);
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+
+    // ตรวจสอบว่า selectedDate ไม่ใช่ null และเป็น Dayjs object ที่ถูกต้อง
+    if (selectedDate && selectedDate.isValid()) {
+      startDate = selectedDate.startOf('day').toDate();
+      endDate = selectedDate.endOf('day').toDate();
+      console.log(`HistoryPage: Fetching orders for date: ${selectedDate.format('YYYY-MM-DD')}`);
     } else {
-      // ถ้าไม่ได้เลือกวันที่ ให้แสดงออเดอร์ทั้งหมด
-      unsubscribe = getOrders((fetchedOrders, err) => {
-        if (err) {
-          console.error("HistoryPage Error: Failed to fetch all orders.", err);
-          setError("ไม่สามารถโหลดรายการออเดอร์ทั้งหมดได้");
-        } else {
-          setOrders(fetchedOrders.sort((a, b) => b.createdAt - a.createdAt));
-          setError(null);
-        }
-        setLoading(false);
-      });
+      console.log("HistoryPage: Fetching all orders (no valid date selected).");
     }
 
-    return () => unsubscribe();
+    unsubscribe = getOrders((fetchedOrders, err) => {
+      if (err) {
+        console.error("HistoryPage Error: Failed to fetch orders.", err);
+        setError("ไม่สามารถโหลดรายการออเดอร์ได้");
+      } else {
+        // Sort orders by createdAt in descending order (newest first)
+        setOrders(fetchedOrders.sort((a, b) => b.createdAt - a.createdAt));
+        setError(null);
+      }
+      setLoading(false);
+    }, startDate, endDate);
+
+    return () => unsubscribe(); // Cleanup Firebase listener on component unmount or dependency change
   }, [selectedDate]); // Dependency on selectedDate: fetch data when selectedDate changes
 
-  // คำนวณยอดรวมของออเดอร์ที่แสดงอยู่
-  const totalItemsDisplayed = orders.reduce((sum, order) => sum + order.totalQuantity, 0);
+  // คำนวณ totalItemsDisplayed
+  const totalItemsDisplayed = orders.reduce((sum, order) => {
+    if (order.items && Array.isArray(order.items)) {
+      const orderTotalItems = order.items.reduce((itemSum, item) => itemSum + (item.quantity || 0), 0);
+      return sum + orderTotalItems;
+    }
+    return sum; // ถ้า order.items ไม่ถูกต้อง ให้คืนค่า sum เดิม
+  }, 0);
 
   const handleEditClick = (order: Order) => {
     onEditOrder(order);
-    console.log("HistoryPage: Edit button clicked for order:", order.id);
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("คุณแน่ใจหรือไม่ที่จะลบออเดอร์นี้?")) {
+    if (window.confirm('คุณต้องการลบออเดอร์นี้หรือไม่?')) {
       try {
         await deleteOrder(id);
-        console.log("HistoryPage: Delete operation initiated for order ID:", id);
+        alert('ลบออเดอร์สำเร็จ!');
       } catch (err) {
-        console.error("HistoryPage Error: Failed to delete order. ID:", id, err);
-        alert("เกิดข้อผิดพลาดในการลบออเดอร์");
+        console.error("Error deleting order:", err);
+        alert('เกิดข้อผิดพลาดในการลบออเดอร์');
       }
     }
   };
 
   return (
     <Box>
-      <div id="back-to-top-anchor"></div>
+      <div id="back-to-top-anchor"></div> {/* Anchor สำหรับ ScrollTop */}
 
       <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="th">
         <DatePicker
           label="เลือกวันที่"
-          value={selectedDate}
-          onChange={(newValue) => setSelectedDate(newValue)}
-          renderInput={(params) => <TextField {...params} fullWidth margin="normal" />}
+          value={selectedDate} // ค่าที่แสดงใน DatePicker
+          onChange={(newValue) => {
+            // ตรวจสอบว่า newValue เป็น Dayjs object ที่ถูกต้องหรือไม่ ก่อนที่จะตั้งค่า state
+            // ถ้า newValue เป็น null (เช่น ผู้ใช้กด Clear) หรือไม่ valid, ให้ตั้ง state เป็น null
+            setSelectedDate(newValue && newValue.isValid() ? newValue : null);
+          }}
+          // *** แก้ไขที่นี่: เพิ่ม prop นี้เพื่อแก้ไข error sectionListRef ***
+          enableAccessibleFieldDOMStructure={false}
+          // เพิ่ม format prop เพื่อช่วยให้ DatePicker แสดงผลวันที่ถูกต้องเสมอ
+          // ใช้ 'BBBB' สำหรับปีพุทธศักราช
+          format="DD MMMM BBBB" // ตัวอย่าง: 06 มิถุนายน 2568
+          slots={{ textField: TextField }}
+          slotProps={{
+            textField: {
+              fullWidth: true,
+              margin: "normal",
+              // สามารถเพิ่ม error handling หรือ helperText ที่นี่ได้ถ้าต้องการ
+            },
+          }}
           sx={{ mb: 2 }}
         />
       </LocalizationProvider>
@@ -149,13 +173,12 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onEditOrder }) => {
       <Alert severity="info" sx={{ mb: 3 }}>
         <Typography variant="h6" fontWeight="bold">
           ยอดรวม{' '}
-          {selectedDate
-            ? `ของวันที่ ${selectedDate.format('D MMMM YYYY')}`
+          {selectedDate && selectedDate.isValid() // ตรวจสอบก่อนแสดงผลวันที่
+            ? `ของวันที่ ${selectedDate.format('D MMMM BBBB')}`
             : 'ทั้งหมดที่เคยขายมา'}
           : {totalItemsDisplayed} ลูก
         </Typography>
       </Alert>
-
 
       {loading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 400px)' }}>
@@ -176,14 +199,15 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onEditOrder }) => {
             alignItems: 'center',
             minHeight: 'calc(100vh - 400px)',
             textAlign: 'center',
-            p: 2
+            p: 2,
+            flexDirection: 'column'
         }}>
-          <Alert severity="info" variant="outlined" sx={{ maxWidth: 400 }}>
+          <Alert severity="info" variant="outlined" sx={{ maxWidth: 400, boxShadow: 1 }}>
             <Typography variant="h6" gutterBottom>
                 ไม่พบออเดอร์
             </Typography>
             <Typography variant="body1">
-                {selectedDate ? `ไม่พบออเดอร์สำหรับวันที่ ${selectedDate.format('D MMMM YYYY')}` : 'ยังไม่เคยมีออเดอร์ในระบบเลย'}
+                {selectedDate && selectedDate.isValid() ? `ไม่พบออเดอร์สำหรับวันที่ ${selectedDate.format('D MMMM BBBB')}` : 'ยังไม่เคยมีออเดอร์ในระบบเลย'}
             </Typography>
           </Alert>
         </Box>
@@ -202,6 +226,7 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onEditOrder }) => {
         </Stack>
       )}
 
+      {/* ปุ่ม Scroll To Top */}
       <ScrollTop>
         <Fab color="secondary" size="small" aria-label="scroll back to top">
           <KeyboardArrowUpIcon />

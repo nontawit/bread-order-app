@@ -10,10 +10,10 @@ import {
   query,
   orderBy,
   onSnapshot,
-  where, // เพิ่ม import where
-  Timestamp, // เพิ่ม import Timestamp
+  where,
+  Timestamp, // ตรวจสอบว่ามี import Timestamp
 } from 'firebase/firestore';
-import { firebaseConfig } from '../firebaseConfig';
+import { firebaseConfig } from '../firebaseConfig'; // ตรวจสอบเส้นทางและไฟล์ firebaseConfig
 import { Order, OrderStatus } from '../types/order';
 
 // Initialize Firebase
@@ -37,23 +37,24 @@ export const addOrder = async (order: Omit<Order, 'id'>): Promise<void> => {
 // Get orders with real-time updates based on date range
 export const getOrders = (
   callback: (orders: Order[], error: any) => void,
-  startDate?: Date, // เพิ่ม startDate
-  endDate?: Date // เพิ่ม endDate
+  startDate?: Date, // สามารถเป็น undefined ได้
+  endDate?: Date    // สามารถเป็น undefined ได้
 ) => {
-  let q = query(ordersCollectionRef, orderBy('createdAt', 'desc'));
+  let q; // ตัวแปรสำหรับเก็บ query object
 
   if (startDate && endDate) {
-    // แปลง Date เป็น Timestamp สำหรับการ Query ใน Firestore
-    const startTimestamp = Timestamp.fromDate(startDate).toMillis();
-    const endTimestamp = Timestamp.fromDate(endDate).toMillis();
+    // กรณีมีทั้ง startDate และ endDate (ใช้สำหรับช่วงเวลา)
+    const startTimestamp = Timestamp.fromDate(startDate).toMillis(); // แปลง Date object เป็น milliseconds
+    const endTimestamp = Timestamp.fromDate(endDate).toMillis();     // แปลง Date object เป็น milliseconds
     q = query(
       ordersCollectionRef,
-      where('createdAt', '>=', startTimestamp), // กรองวันที่เริ่มต้น
-      where('createdAt', '<=', endTimestamp), // กรองวันที่สิ้นสุด
-      orderBy('createdAt', 'desc')
+      where('createdAt', '>=', startTimestamp),
+      where('createdAt', '<=', endTimestamp),
+      orderBy('createdAt', 'desc') // ต้องมี orderBy เมื่อใช้ where clause กับ createdAt
     );
     console.log(`Firestore: Querying orders from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
-  } else if (startDate) { // กรณีมีแค่ Start Date แต่ไม่มี End Date (เช่น ต้องการเฉพาะวันนั้น)
+  } else if (startDate) { // กรณีมีแค่ Start Date (เช่น วันที่เดียวที่เลือกจาก DatePicker)
+     // ทำให้ครอบคลุมทั้งวัน (ตั้งแต่ 00:00:00.000 ถึง 23:59:59.999 ของวันนั้น)
      const startOfDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
      const endOfDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 23, 59, 59, 999);
      const startTimestamp = Timestamp.fromDate(startOfDay).toMillis();
@@ -62,14 +63,16 @@ export const getOrders = (
        ordersCollectionRef,
        where('createdAt', '>=', startTimestamp),
        where('createdAt', '<=', endTimestamp),
-       orderBy('createdAt', 'desc')
+       orderBy('createdAt', 'desc') // ต้องมี orderBy เมื่อใช้ where clause กับ createdAt
      );
-     console.log(`Firestore: Querying orders for date ${startDate.toLocaleDateString()}`);
+     console.log(`Firestore: Querying orders for specific date ${startDate.toLocaleDateString()}`);
   } else {
+    // ถ้าไม่มี startDate หรือ endDate (ทั้งคู่เป็น undefined) ให้ดึงออเดอร์ทั้งหมด
+    q = query(ordersCollectionRef, orderBy('createdAt', 'desc'));
     console.log("Firestore: Querying all orders.");
   }
 
-
+  // Real-time listener
   const unsubscribe = onSnapshot(q, (querySnapshot) => {
     const orders: Order[] = [];
     querySnapshot.forEach((doc) => {
@@ -82,7 +85,7 @@ export const getOrders = (
     callback([], error);
   });
 
-  return unsubscribe;
+  return unsubscribe; // คืนค่า unsubscribe function เพื่อ cleanup listener
 };
 
 // Update an existing order
