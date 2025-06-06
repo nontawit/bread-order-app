@@ -1,5 +1,5 @@
 // src/pages/HomePage.tsx
-import { useState, useEffect } from 'react'; // เหลือแค่ useState, useEffect
+import { useState, useEffect } from 'react';
 import {
   Typography,
   Box,
@@ -12,15 +12,14 @@ import {
 } from '@mui/material';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import OrderCard from '../components/OrderCard';
-import { Order } from '../types/order'; // Import Order
+import { Order } from '../types/order';
 import {
   getOrders,
   deleteOrder,
 } from '../utils/firebaseHelpers';
 
-// เพิ่ม Props Interface สำหรับ HomePage
 interface HomePageProps {
-    onEditOrder: (order: Order) => void; // ฟังก์ชันที่จะถูกเรียกเมื่อต้องการแก้ไขออเดอร์
+    onEditOrder: (order: Order) => void;
 }
 
 // Component สำหรับปุ่ม Scroll to Top (ยังคงเหมือนเดิม)
@@ -63,14 +62,17 @@ function ScrollTop(props: ScrollTopProps) {
   );
 }
 
-// รับ onEditOrder เป็น prop
 const HomePage: React.FC<HomePageProps> = ({ onEditOrder }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // getOrders ตอนนี้เป็น Realtime Listener แล้ว
+    // กรองออเดอร์สำหรับวันนี้เท่านั้น
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
     const unsubscribe = getOrders((fetchedOrders, err) => {
       if (err) {
         console.error("HomePage Error: Failed to fetch orders.", err);
@@ -80,18 +82,19 @@ const HomePage: React.FC<HomePageProps> = ({ onEditOrder }) => {
         setError(null);
       }
       setLoading(false);
-    });
+    }, startOfDay, endOfDay); // ส่ง startDate และ endDate ไป
 
-    return () => unsubscribe(); // Cleanup the listener on component unmount
+    return () => unsubscribe();
   }, []);
 
-  // ฟังก์ชันเมื่อมีการกดแก้ไขใน OrderCard
+  // คำนวณยอดรวมของออเดอร์ในวันนี้
+  const totalItemsToday = orders.reduce((sum, order) => sum + order.totalQuantity, 0);
+
   const handleEditClick = (order: Order) => {
-    onEditOrder(order); // เรียกใช้ฟังก์ชัน onEditOrder ที่รับมาจาก App.tsx
+    onEditOrder(order);
     console.log("HomePage: Edit button clicked for order:", order.id);
   };
 
-  // ฟังก์ชันเมื่อมีการกดยืนยันการลบใน OrderCard
   const handleDelete = async (id: string) => {
     if (window.confirm("คุณแน่ใจหรือไม่ที่จะลบออเดอร์นี้?")) {
       try {
@@ -106,11 +109,17 @@ const HomePage: React.FC<HomePageProps> = ({ onEditOrder }) => {
 
   return (
     <Box>
-      {/* Anchor สำหรับ Scroll to Top */}
       <div id="back-to-top-anchor"></div>
 
+      {/* แสดงยอดรวมของวันนี้ */}
+      <Alert severity="info" sx={{ mb: 3 }}>
+        <Typography variant="h6" fontWeight="bold">
+          ยอดรวมของวันนี้: {totalItemsToday} ลูก
+        </Typography>
+      </Alert>
+
       {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 200px)' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 400px)' }}>
           <CircularProgress size={60} />
         </Box>
       )}
@@ -126,13 +135,13 @@ const HomePage: React.FC<HomePageProps> = ({ onEditOrder }) => {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            minHeight: 'calc(100vh - 200px)',
+            minHeight: 'calc(100vh - 400px)',
             textAlign: 'center',
             p: 2
         }}>
           <Alert severity="info" variant="outlined" sx={{ maxWidth: 400 }}>
             <Typography variant="h6" gutterBottom>
-                ยังไม่มีออเดอร์!
+                ยังไม่มีออเดอร์สำหรับวันนี้!
             </Typography>
             <Typography variant="body1">
                 ลองเพิ่มออเดอร์ใหม่ได้เลย โดยกดปุ่ม "เพิ่มออเดอร์" บน App Bar
@@ -147,7 +156,7 @@ const HomePage: React.FC<HomePageProps> = ({ onEditOrder }) => {
             <OrderCard
                 key={order.id}
                 order={order}
-                onEdit={handleEditClick} // ส่ง handleEditClick ไปให้ OrderCard
+                onEdit={handleEditClick}
                 onDelete={handleDelete}
             />
           ))}

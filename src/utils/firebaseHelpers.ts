@@ -9,10 +9,12 @@ import {
   deleteDoc,
   query,
   orderBy,
-  onSnapshot, // Import onSnapshot
+  onSnapshot,
+  where, // เพิ่ม import where
+  Timestamp, // เพิ่ม import Timestamp
 } from 'firebase/firestore';
-import { firebaseConfig } from '../firebaseConfig'; // ตรวจสอบให้แน่ใจว่า import ถูกต้อง
-import { Order, OrderStatus } from '../types/order'; // Import Order and OrderStatus (เผื่อยังไม่มี)
+import { firebaseConfig } from '../firebaseConfig';
+import { Order, OrderStatus } from '../types/order';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -25,31 +27,62 @@ const ordersCollectionRef = collection(db, 'orders');
 export const addOrder = async (order: Omit<Order, 'id'>): Promise<void> => {
   try {
     const docRef = await addDoc(ordersCollectionRef, order);
-    console.log("Firestore: Order added successfully with ID: ", docRef.id); // เพิ่ม console.log ที่มี ID
+    console.log("Firestore: Order added successfully with ID: ", docRef.id);
   } catch (e) {
-    console.error("Firestore Error: Failed to add document.", e); // ข้อความ error ที่ชัดเจนขึ้น
-    throw e; // โยน error กลับไปให้ส่วนที่เรียกใช้รับทราบ
+    console.error("Firestore Error: Failed to add document.", e);
+    throw e;
   }
 };
 
-// Get orders with real-time updates
-// Callback function will be called whenever data changes
-export const getOrders = (callback: (orders: Order[], error: any) => void) => {
-  const q = query(ordersCollectionRef, orderBy('createdAt', 'desc')); // เรียงตามเวลาสร้างจากใหม่ไปเก่า
+// Get orders with real-time updates based on date range
+export const getOrders = (
+  callback: (orders: Order[], error: any) => void,
+  startDate?: Date, // เพิ่ม startDate
+  endDate?: Date // เพิ่ม endDate
+) => {
+  let q = query(ordersCollectionRef, orderBy('createdAt', 'desc'));
+
+  if (startDate && endDate) {
+    // แปลง Date เป็น Timestamp สำหรับการ Query ใน Firestore
+    const startTimestamp = Timestamp.fromDate(startDate).toMillis();
+    const endTimestamp = Timestamp.fromDate(endDate).toMillis();
+    q = query(
+      ordersCollectionRef,
+      where('createdAt', '>=', startTimestamp), // กรองวันที่เริ่มต้น
+      where('createdAt', '<=', endTimestamp), // กรองวันที่สิ้นสุด
+      orderBy('createdAt', 'desc')
+    );
+    console.log(`Firestore: Querying orders from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
+  } else if (startDate) { // กรณีมีแค่ Start Date แต่ไม่มี End Date (เช่น ต้องการเฉพาะวันนั้น)
+     const startOfDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+     const endOfDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 23, 59, 59, 999);
+     const startTimestamp = Timestamp.fromDate(startOfDay).toMillis();
+     const endTimestamp = Timestamp.fromDate(endOfDay).toMillis();
+     q = query(
+       ordersCollectionRef,
+       where('createdAt', '>=', startTimestamp),
+       where('createdAt', '<=', endTimestamp),
+       orderBy('createdAt', 'desc')
+     );
+     console.log(`Firestore: Querying orders for date ${startDate.toLocaleDateString()}`);
+  } else {
+    console.log("Firestore: Querying all orders.");
+  }
+
 
   const unsubscribe = onSnapshot(q, (querySnapshot) => {
     const orders: Order[] = [];
     querySnapshot.forEach((doc) => {
       orders.push({ id: doc.id, ...doc.data() } as Order);
     });
-    console.log("Firestore: Real-time orders fetched. Total:", orders.length); // เพิ่ม console.log
-    callback(orders, null); // Pass the fetched orders to the callback
+    console.log("Firestore: Real-time orders fetched. Total:", orders.length);
+    callback(orders, null);
   }, (error) => {
-    console.error("Firestore Error: Failed to fetch real-time orders.", error); // ข้อความ error ที่ชัดเจนขึ้น
-    callback([], error); // Pass error to the callback
+    console.error("Firestore Error: Failed to fetch real-time orders.", error);
+    callback([], error);
   });
 
-  return unsubscribe; // Return the unsubscribe function to stop listening
+  return unsubscribe;
 };
 
 // Update an existing order

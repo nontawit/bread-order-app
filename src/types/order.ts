@@ -16,12 +16,14 @@ export interface OrderItem {
   quantity: number;
 }
 
-// ต้องมี 'export' ตรงนี้!
 export interface Order {
   id?: string; // Optional for new orders before saving to Firebase
   customerName: string;
   items: OrderItem[];
   totalQuantity: number;
   status: OrderStatus;
-  createdAt: number; // Timestamp
+  createdAt: number; // Timestamp (milliseconds since epoch)
 }
+
+// เพิ่ม Type สำหรับ Page ในแอป
+export type PageType = 'home' | 'history';

@@ -1,95 +1,164 @@
 // src/App.tsx
 import { useState } from 'react';
-import { AppBar, Toolbar, Typography, Container, Box, Fab, useMediaQuery, useTheme, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Container,
+  Box,
+  Fab,
+  useMediaQuery,
+  useTheme,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  Tabs,
+  Tab,
+} from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import HomePage from './pages/HomePage';
+import HistoryPage from './pages/HistoryPage';
 import AddEditOrderForm from './components/AddEditOrderForm';
-import { Order, OrderStatus } from './types/order'; // Import Order and OrderStatus
-import { addOrder, updateOrder } from './utils/firebaseHelpers'; // Import addOrder, updateOrder
+import { Order, OrderStatus, PageType } from './types/order';
+import { addOrder, updateOrder } from './utils/firebaseHelpers';
 
 function App() {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<Order | undefined>(undefined); // State สำหรับเก็บข้อมูลออเดอร์ที่กำลังแก้ไข
+  const [editingOrder, setEditingOrder] = useState<Order | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState<PageType>('home');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // ฟังก์ชันสำหรับเปิด Dialog พร้อมกำหนดว่าเป็นการเพิ่มหรือแก้ไข
   const handleOpenForm = (orderToEdit?: Order) => {
-    setEditingOrder(orderToEdit); // ตั้งค่าออเดอร์ที่จะแก้ไข (ถ้ามี)
+    setEditingOrder(orderToEdit);
     setIsFormOpen(true);
   };
 
-  // ฟังก์ชันสำหรับปิด Dialog และล้างค่า editingOrder
   const handleCloseForm = () => {
     setIsFormOpen(false);
-    setEditingOrder(undefined); // ล้างค่า editingOrder เมื่อปิด Dialog เพื่อเตรียมพร้อมสำหรับการเพิ่มใหม่
+    setEditingOrder(undefined);
   };
 
-  // ฟังก์ชันที่ถูกเรียกเมื่อฟอร์ม AddEditOrderForm ถูก submit
   const handleAddEditOrderSubmit = async (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>) => {
     console.log("App.tsx: handleAddEditOrderSubmit called with orderData:", orderData);
     try {
       if (editingOrder) {
-        // ถ้าเป็นการแก้ไขออเดอร์
         await updateOrder(editingOrder.id!, {
           ...orderData,
-          status: editingOrder.status, // สถานะยังคงเดิมตอนแก้ไข
-          createdAt: editingOrder.createdAt, // เวลาสร้างยังคงเดิม
+          status: editingOrder.status,
+          createdAt: editingOrder.createdAt,
         });
         console.log("App.tsx: Update order operation initiated.");
       } else {
-        // ถ้าเป็นการเพิ่มออเดอร์ใหม่
         await addOrder({
           ...orderData,
-          status: 'รอคิว' as OrderStatus, // ออเดอร์ใหม่เริ่มต้นที่สถานะ 'รอคิว'
-          createdAt: Date.now(), // บันทึกเวลาที่สร้าง
+          status: 'รอคิว' as OrderStatus,
+          createdAt: Date.now(),
         });
         console.log("App.tsx: Add new order operation initiated.");
       }
-      handleCloseForm(); // ปิด Dialog หลังจากบันทึกสำเร็จ
+      handleCloseForm();
     } catch (err) {
-      console.error("App.tsx Error: Failed to save order.", err); // เพิ่ม error logging
+      console.error("App.tsx Error: Failed to save order.", err);
       alert("เกิดข้อผิดพลาดในการบันทึกออเดอร์ กรุณาตรวจสอบ Console");
     }
   };
 
+  const handlePageChange = (event: React.SyntheticEvent, newValue: PageType) => {
+    setCurrentPage(newValue);
+  };
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar position="static" color="primary" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Toolbar>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: theme.palette.background.default }}>
+      <AppBar position="static" color="primary" elevation={3} sx={{
+        background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.light} 90%)`,
+        boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.1)',
+      }}>
+        <Toolbar sx={{
+          display: 'flex',
+          justifyContent: 'space-between', // ชื่อแอปอยู่ซ้าย, กลุ่มปุ่มอยู่ขวา
+          alignItems: 'center',
+          py: { xs: 1, sm: 2 },
+          flexWrap: 'wrap',
+          // gap: { xs: 1, sm: 2 } // ลบ gap ออก เพราะเราจะใช้ flexbox จัดเอง
+        }}>
+          {/* ชื่อแอป - จัดให้อยู่ซ้ายสุด */}
           <Typography
-            variant="h6"
+            variant="h5"
             component="div"
-            sx={{ flexGrow: 1, fontWeight: 600, fontSize: { xs: '1.2rem', sm: '1.5rem' } }}
-          >
-            รายการออเดอร์ขนมปัง
-          </Typography>
-          {/* ปุ่ม + เพิ่มออเดอร์ บน AppBar */}
-          <Fab
-            color="secondary" // ใช้สี secondary เพื่อให้ตัดกับ primary ของ AppBar
-            aria-label="add order"
-            onClick={() => handleOpenForm()} // เรียก handleOpenForm โดยไม่มี order parameter เพื่อเป็นการเพิ่มใหม่
-            size="small" // ทำให้ปุ่มเล็กลง เหมาะสำหรับ AppBar
             sx={{
-              minWidth: { xs: 'auto', sm: 'auto' },
-              borderRadius: '50%', // ให้เป็นวงกลมเสมอ
-              p: 0, // ลบ padding ภายใน
-              height: 40, // กำหนดความสูง
-              width: 40, // กำหนดความกว้าง
-              boxShadow: 0, // ลบเงาเพื่อความเรียบง่าย
+              fontWeight: 700,
+              color: 'white',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              mr: 'auto', // ชื่อแอปจะชิดซ้ายสุดและดันองค์ประกอบอื่นไปขวา
             }}
           >
-            <AddIcon sx={{ fontSize: '1.5rem' }} />
-          </Fab>
+            ระบบจัดการออเดอร์ขนมปัง
+          </Typography>
+
+          {/* Group สำหรับ Tabs และ Fab (ปุ่มเพิ่มออเดอร์) - อยู่ทางขวา */}
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: { xs: 1, sm: 2 }, // เพิ่ม gap ระหว่าง Tabs กับ Fab
+            flexShrink: 0, // ไม่ให้หดตัว
+          }}>
+            <Tabs
+              value={currentPage}
+              onChange={handlePageChange}
+              sx={{
+                minHeight: 'auto',
+                '.MuiTabs-indicator': {
+                  height: 0,
+                  display: 'none',
+                },
+                '.MuiTab-root': {
+                  fontWeight: 600,
+                  fontSize: { xs: '0.85rem', sm: '1.0rem' },
+                  minWidth: { xs: 80, sm: 100 },
+                  px: { xs: 1, sm: 2 },
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  py: { xs: 1, sm: 1.5 },
+                  transition: 'all 0.2s ease-in-out',
+                  '&.Mui-selected': {
+                    color: 'white',
+                    fontWeight: 800,
+                    fontSize: { xs: '1.0rem', sm: '1.1rem' },
+                  },
+                },
+              }}
+            >
+              <Tab label="หน้าหลัก" value="home" />
+              <Tab label="ประวัติ" value="history" />
+            </Tabs>
+
+            {/* ปุ่มเพิ่มออเดอร์ */}
+            <Fab
+              color="secondary"
+              aria-label="add order"
+              onClick={() => handleOpenForm()}
+              size="medium"
+              sx={{
+                height: 48,
+                width: 48,
+                boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.2)',
+                flexShrink: 0,
+                // ml: { xs: 1, sm: 2 } // ไม่ต้องมี ml เพราะ gap ใน Box ด้านบนจัดการแล้ว
+              }}
+            >
+              <AddIcon sx={{ fontSize: '1.8rem' }} />
+            </Fab>
+          </Box>
         </Toolbar>
       </AppBar>
       <Container component="main" sx={{ flexGrow: 1, py: { xs: 3, sm: 4 }, px: { xs: 2, sm: 3 } }}>
-        {/* ส่ง onEditOrder ไปให้ HomePage เพื่อให้ HomePage เรียก App.tsx เมื่อต้องการแก้ไข */}
-        <HomePage onEditOrder={handleOpenForm} />
+        {currentPage === 'home' && <HomePage onEditOrder={handleOpenForm} />}
+        {currentPage === 'history' && <HistoryPage onEditOrder={handleOpenForm} />}
       </Container>
 
-      {/* Dialog สำหรับฟอร์มเพิ่ม/แก้ไขออเดอร์ ควบคุมโดย App.tsx */}
       <Dialog
         open={isFormOpen}
         onClose={handleCloseForm}
@@ -99,7 +168,7 @@ function App() {
       >
         <DialogTitle sx={{ textAlign: 'center', py: { xs: 2, sm: 3 }, fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
           {editingOrder ? 'แก้ไขออเดอร์' : 'เพิ่มออเดอร์ใหม่'}
-          {isMobile && ( // ปุ่มปิดสำหรับ Mobile Fullscreen Dialog
+          {isMobile && (
             <IconButton
               aria-label="close"
               onClick={handleCloseForm}
@@ -116,9 +185,9 @@ function App() {
         </DialogTitle>
         <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
           <AddEditOrderForm
-            initialOrder={editingOrder} // ส่งข้อมูลออเดอร์ที่กำลังแก้ไข (ถ้ามี)
-            onSubmit={handleAddEditOrderSubmit} // onSubmit จะเรียก handleAddEditOrderSubmit
-            onCancel={handleCloseForm} // onCancel จะเรียก handleCloseForm
+            initialOrder={editingOrder}
+            onSubmit={handleAddEditOrderSubmit}
+            onCancel={handleCloseForm}
           />
         </DialogContent>
       </Dialog>
