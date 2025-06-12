@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LINE Group ID Finder</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        #groupIdContainer {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 400px;
+        }
+        #groupId {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #007bff;
+            word-break: break-all; /* เพื่อให้ข้อความยาวๆ ไม่เลยขอบ */
+        }
+        #instructions {
+            margin-top: 20px;
+            color: #555;
+            font-size: 0.9em;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Your LINE Group ID:</h1>
+    <div id="groupIdContainer">
+        <p id="groupId">Loading...</p>
+    </div>
+    <p id="instructions">
+        โปรดเปิดหน้านี้ภายในกลุ่ม LINE Chat (ของพนักงาน) เพื่อดึง Group ID.<br>
+        หากเปิดใน Browser ปกติ จะไม่สามารถดึง Group ID ได้.
+    </p>
+
+    <script>
+        async function initializeLiff() {
+            try {
+                // แทนที่ด้วย LIFF ID ที่คุณจะได้รับหลังจากสร้าง LIFF App ใน Line Developers Console
+                // เราจะกลับมาแก้ไขตรงนี้ทีหลัง หลังจากสร้าง LIFF App แล้ว
+                // ตอนนี้ปล่อยให้เป็น "YOUR_LIFF_ID_PLACEHOLDER" ไปก่อนได้
+                await liff.init({ liffId: "YOUR_LIFF_ID_PLACEHOLDER" });
+
+                if (liff.isInClient() && liff.getContext().type === 'group') {
+                    document.getElementById("groupId").textContent = liff.getContext().groupId;
+                    document.getElementById("instructions").textContent = "Group ID ของคุณถูกดึงมาแล้ว! คัดลอกไปใช้ได้เลย.";
+                } else {
+                    document.getElementById("groupId").className = "error";
+                    document.getElementById("groupId").textContent = "ไม่สามารถดึง Group ID ได้";
+                    document.getElementById("instructions").textContent = "โปรดแน่ใจว่าคุณเปิดหน้านี้ในกลุ่ม LINE Chat และ LINE OA ของคุณอยู่ในกลุ่มนั้น.";
+                }
+            } catch (e) {
+                document.getElementById("groupId").className = "error";
+                document.getElementById("groupId").textContent = "เกิดข้อผิดพลาดในการโหลด LIFF SDK";
+                document.getElementById("instructions").textContent = `Error: ${e.message}. ตรวจสอบ LIFF ID หรือการเชื่อมต่อ.`;
+                console.error("LIFF initialization failed", e);
+            }
+        }
+
+        // เรียกฟังก์ชันเมื่อหน้าเว็บโหลดเสร็จ
+        window.onload = initializeLiff;
+    </script>
+</body>
+</html>
