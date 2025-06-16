@@ -1,5 +1,5 @@
 // src/components/AddEditOrderForm.tsx
-import { useState, useEffect } from 'react'; // เหลือแค่ useState, useEffect
+import { useState, useEffect } from 'react';
 import {
   Button,
   TextField,
@@ -23,7 +23,7 @@ interface AddEditOrderFormProps {
 
 const fillings: Filling[] = [
   'สังขยาใบเตย',
-  'สังขยาไข่',
+  'ปูอัดมายองเนส', // <--- เปลี่ยนจาก 'สังขยาไข่' เป็น 'ปูอัดมายองเนส' ที่นี่
   'เนยนม',
   'เนยน้ำตาล',
   'ช็อกโกแลตกล้วย',
@@ -163,15 +163,14 @@ const AddEditOrderForm: React.FC<AddEditOrderFormProps> = ({
                     >
                         <RemoveIcon fontSize="small" />
                     </IconButton>
-                    {/* ตรงนี้คือส่วนที่เปลี่ยน: เปลี่ยน TextField เป็น Typography เพื่อแสดงผลลัพธ์เท่านั้น */}
                     <Typography
                         variant="body1"
                         sx={{
-                            minWidth: 30, // กำหนดความกว้างขั้นต่ำ
+                            minWidth: 30,
                             textAlign: 'center',
                             fontWeight: 'bold',
-                            mx: 0.5, // margin ซ้ายขวา
-                            display: 'inline-block' // เพื่อให้ minWidth ทำงาน
+                            mx: 0.5,
+                            display: 'inline-block'
                         }}
                     >
                         {currentQuantity}
@@ -191,7 +190,7 @@ const AddEditOrderForm: React.FC<AddEditOrderFormProps> = ({
       </FormGroup>
       {itemsError && (
           <Typography color="error" variant="caption" sx={{ ml: 1.5, mt: 0.5 }}>
-              กรุณาเลือกไส้อย่างน้อย 1 อย่าง
+            กรุณาเลือกไส้อย่างน้อย 1 อย่าง
           </Typography>
       )}
 
